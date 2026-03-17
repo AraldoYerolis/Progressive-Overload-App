@@ -839,6 +839,103 @@ body {
 input:checked + .toggle-slider { background: var(--accent-green); }
 input:checked + .toggle-slider::before { transform: translateX(20px); }
 
+/* ── Phase 2: Adaptive "Why this changed" card ──────────────── */
+
+.change-reasons-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  overflow: hidden;
+  animation: fadeIn 0.3s ease;
+}
+
+.change-reasons-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  background: rgba(255,255,255,0.03);
+}
+.change-reasons-header:active { background: rgba(255,255,255,0.06); }
+
+.change-reasons-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.change-reasons-chevron {
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.change-reasons-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.change-reasons-body.open {
+  max-height: 800px; /* large enough for any number of reasons */
+}
+
+.change-reason-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.change-reason-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.change-reason-body { flex: 1; }
+
+.change-reason-exercise {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.change-reason-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.change-delta {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+/* Flag-specific row tints */
+.flag-progress .change-reason-exercise { color: var(--accent-green); }
+.flag-hold     .change-reason-exercise { color: var(--accent-yellow); }
+.flag-reduce   .change-reason-exercise { color: #ff9f7f; }
+.flag-regress  .change-reason-exercise { color: #ff6b6b; }
+.flag-modified .change-reason-exercise { color: var(--accent-blue); }
+
+/* Adapted dot indicator on exercise cards */
+.adapted-dot {
+  font-size: 8px;
+  vertical-align: middle;
+  color: var(--accent-blue);
+  margin-left: 2px;
+  cursor: help;
+}
+
 /* ── Animations ─────────────────────────────────────────────── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
