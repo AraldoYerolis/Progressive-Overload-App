@@ -4,18 +4,21 @@
  * Assembles complete Workout objects from the progression engine
  * output and the user's profile.
  *
+ * Phase 2 additions:
+ *   - After building each section, PlannedExercises are run through
+ *     AdaptiveEngine.adaptPrescription() which adjusts sets/reps/
+ *     duration based on recent performance history and note signals.
+ *   - All non-null adaptation reasons are collected into
+ *     workout.changeReasons for display in the "Why this changed" card.
+ *   - Warm-up exercises are NOT adapted (always standard prescription).
+ *
  * Generation logic (in order):
  *   1. Read user profile (stage, goals, equipment, time target)
- *   2. Build warm-up section (always ~5 min)
- *   3. Build main block (primary goal exercises for current stage)
- *   4. If time remains, add accessory block (secondary goals)
- *   5. Optionally add a cooldown note
- *   6. Store the workout in localStorage
- *
- * Phase 1 constraints:
- *   - Always conservative — default to fewer sets / lower reps
- *   - No randomisation beyond exercise order where allowed
- *   - Same exercises each session unless stage changes (Phase 2 adds variation)
+ *   2. Build warm-up section (~5 min — unadapted)
+ *   3. Build main block → adapt each exercise prescription
+ *   4. If time remains, build accessory block → adapt
+ *   5. Add cooldown note
+ *   6. Collect change reasons, assemble and save workout
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -75,8 +78,56 @@ const WorkoutGenerator = (() => {
       stageId, equipment, minutesRemaining
     );
 
+    // ── Phase 2: collect all adaptation change reasons ────────────
+    const changeReasons = [];
+
+    /**
+     * adaptAndPlan(exercise, overrides)
+     * Builds a PlannedExercise, then runs it through AdaptiveEngine.
+     * If the prescription is modified, stores the adaptation metadata
+     * and appends a ChangeReason entry.
+     */
+    function adaptAndPlan(exercise, overrides = {}) {
+      // 1. Build the base prescription
+      const base = buildPlannedExercise(exercise, overrides);
+
+      // 2. Ask AdaptiveEngine to adjust
+      const adapted = AdaptiveEngine.adaptPrescription(exercise, {
+        sets:            base.sets,
+        reps:            base.reps,
+        durationSeconds: base.durationSeconds,
+        restSeconds:     base.restSeconds,
+      }, Storage);
+
+      // 3. Apply adapted values back to the PlannedExercise
+      base.sets            = adapted.sets;
+      base.reps            = adapted.reps;
+      base.durationSeconds = adapted.durationSeconds;
+      base.restSeconds     = adapted.restSeconds;
+
+      // 4. If there was a notable adaptation, store metadata
+      if (adapted.flag !== null && adapted.reason !== null) {
+        base.adaptedFrom      = adapted.adaptedFrom;
+        base.adaptationReason = adapted.reason;
+
+        // Collect for the "Why this changed" card
+        changeReasons.push(createChangeReason({
+          exerciseId:   exercise.id,
+          exerciseName: exercise.name,
+          flag:         adapted.flag,
+          reason:       adapted.reason,
+          adaptedFrom:  adapted.adaptedFrom,
+          adaptedTo:    adapted.adaptedFrom // only set when prescription changed
+            ? { sets: adapted.sets, reps: adapted.reps, durationSeconds: adapted.durationSeconds }
+            : null,
+        }));
+      }
+
+      return base;
+    }
+
     const mainExercisesPlanned = primaryExercises.map(ex =>
-      buildPlannedExercise(ex, {
+      adaptAndPlan(ex, {
         sets: volumeConfig.sets,
         reps: ex.defaultReps,
         duration: ex.defaultDuration,
@@ -103,9 +154,9 @@ const WorkoutGenerator = (() => {
 
       if (accessoryExercises.length > 0) {
         const accessoryPlanned = accessoryExercises.map(ex =>
-          buildPlannedExercise(ex, {
-            sets: ex.defaultSets,
-            reps: ex.defaultReps,
+          adaptAndPlan(ex, {
+            sets:     ex.defaultSets,
+            reps:     ex.defaultReps,
             duration: ex.defaultDuration,
           })
         );
@@ -146,6 +197,7 @@ const WorkoutGenerator = (() => {
       primaryGoal: profile.primaryGoal,
       estimatedMinutes: Math.min(totalMinutes, timeTarget),
       sections,
+      changeReasons,     // Phase 2: adaptation change log
     });
 
     Storage.saveWorkout(workout);

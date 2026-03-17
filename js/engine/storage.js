@@ -249,6 +249,80 @@ const Storage = (() => {
   }
 
 
+  // ── Phase 2: Adaptive engine helpers ──────────────────────────
+
+  /**
+   * getRecentExercisePerformance(exerciseId, limit = 4)
+   * Returns an array of recent session performance objects for a
+   * given exercise, sorted most-recent-first.
+   *
+   * Each entry:
+   * {
+   *   date,
+   *   plannedSets, plannedReps, plannedDuration,
+   *   setsCompleted,    — sets where completed === true
+   *   maxRepsInSet,     — best rep count in a single completed set
+   *   avgReps,          — average reps across completed sets
+   *   maxDurationInSet, — best duration in a single completed set
+   *   rpe,              — exercise RPE (null if not set)
+   *   signals,          — Signal[] (exercise-level + workout-level, parsed live)
+   * }
+   *
+   * Backward-compatible: parses notes on the fly if parsedSignals
+   * are not stored in the log (Phase 1 logs).
+   */
+  function getRecentExercisePerformance(exerciseId, limit = 4) {
+    const logs = getCompletedLogs(); // already sorted date desc
+    const results = [];
+
+    for (const log of logs) {
+      if (results.length >= limit) break;
+
+      const exLog = log.exerciseLogs.find(e => e.exerciseId === exerciseId);
+      if (!exLog) continue;
+
+      // ── Set-level metrics ──────────────────────────────────────
+      const completedSets = exLog.setLogs.filter(s => s.completed);
+      const setsCompleted = completedSets.length;
+
+      const repValues  = completedSets.map(s => s.repsCompleted || 0).filter(v => v > 0);
+      const durValues  = completedSets.map(s => s.durationSeconds || 0).filter(v => v > 0);
+
+      const maxRepsInSet     = repValues.length  ? Math.max(...repValues)  : 0;
+      const avgReps          = repValues.length  ? Math.round(repValues.reduce((a, b) => a + b, 0) / repValues.length) : 0;
+      const maxDurationInSet = durValues.length  ? Math.max(...durValues)  : 0;
+
+      // ── Signals ────────────────────────────────────────────────
+      // Use stored parsedSignals if available (Phase 2 logs),
+      // otherwise parse notes on the fly (Phase 1 logs).
+      const exSignals = (exLog.parsedSignals && exLog.parsedSignals.length > 0)
+        ? exLog.parsedSignals
+        : NoteParser.parseNotes(exLog.notes || '');
+
+      const woSignals = (log.parsedSignals && log.parsedSignals.length > 0)
+        ? log.parsedSignals
+        : NoteParser.parseNotes(log.overallNotes || '');
+
+      const allSignals = [...exSignals, ...woSignals];
+
+      results.push({
+        date:             log.date,
+        plannedSets:      exLog.plannedSets,
+        plannedReps:      exLog.plannedReps,
+        plannedDuration:  exLog.plannedDurationSeconds,
+        setsCompleted,
+        maxRepsInSet,
+        avgReps,
+        maxDurationInSet,
+        rpe:              exLog.rpe,
+        signals:          allSignals,
+      });
+    }
+
+    return results;
+  }
+
+
   // ── Full reset ───────────────────────────────────────────────
 
   function resetAll() {
@@ -292,6 +366,9 @@ const Storage = (() => {
     getPersonalBest,
     getExerciseHistory,
     getNotablePRs,
+
+    // Phase 2: Adaptive engine
+    getRecentExercisePerformance,
 
     // Reset
     resetAll,

@@ -72,9 +72,75 @@ const WorkoutView = (() => {
     }
 
     container.innerHTML = '';
+    renderChangeReasons(workout, container);  // Phase 2: show adaptations first
     renderSections(workout, container, false);
 
     if (startBar) startBar.style.display = 'block';
+  }
+
+  // ── Phase 2: "Why this changed" card ─────────────────────────
+
+  /**
+   * renderChangeReasons(workout, container)
+   * If the workout has adaptation change reasons, renders a collapsible
+   * "What adapted today" card above the exercise sections.
+   */
+  function renderChangeReasons(workout, container) {
+    const reasons = workout.changeReasons;
+    if (!reasons || reasons.length === 0) return;
+
+    const flagConfig = {
+      progress: { icon: '✅', label: 'Progressed',  cssClass: 'flag-progress'  },
+      hold:     { icon: '⏸',  label: 'Held Steady', cssClass: 'flag-hold'      },
+      reduce:   { icon: '📉', label: 'Reduced',     cssClass: 'flag-reduce'    },
+      regress:  { icon: '📉', label: 'Stepped Back', cssClass: 'flag-regress'  },
+      modified: { icon: '⚠️', label: 'Modified',    cssClass: 'flag-modified'  },
+    };
+
+    const rowsHTML = reasons.map(r => {
+      const cfg = flagConfig[r.flag] || { icon: '•', label: r.flag, cssClass: '' };
+
+      // Build the change string (e.g. "3×8 → 3×9") only when prescription changed
+      let changeStr = '';
+      if (r.adaptedFrom && r.adaptedTo) {
+        changeStr = `<span class="change-delta">${AdaptiveEngine.formatAdaptationChange(r.adaptedFrom, r.adaptedTo)}</span>`;
+      }
+
+      return `
+        <div class="change-reason-row ${cfg.cssClass}">
+          <div class="change-reason-icon">${cfg.icon}</div>
+          <div class="change-reason-body">
+            <div class="change-reason-exercise">${r.exerciseName} ${changeStr}</div>
+            <div class="change-reason-text">${r.reason}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const card = document.createElement('div');
+    card.className = 'change-reasons-card';
+    card.innerHTML = `
+      <div class="change-reasons-header" onclick="WorkoutView.toggleChangeReasons(this)">
+        <span class="change-reasons-title">↕ What adapted today (${reasons.length})</span>
+        <span class="change-reasons-chevron">▾</span>
+      </div>
+      <div class="change-reasons-body open" id="change-reasons-body">
+        ${rowsHTML}
+      </div>
+    `;
+    container.appendChild(card);
+  }
+
+  /**
+   * toggleChangeReasons(headerEl)
+   * Collapses or expands the change reasons list.
+   */
+  function toggleChangeReasons(headerEl) {
+    const body = document.getElementById('change-reasons-body');
+    if (!body) return;
+    body.classList.toggle('open');
+    const chevron = headerEl.querySelector('.change-reasons-chevron');
+    if (chevron) chevron.textContent = body.classList.contains('open') ? '▾' : '▸';
   }
 
   /**
@@ -135,9 +201,14 @@ const WorkoutView = (() => {
     const prescription = buildPrescriptionText(ex);
     const restText     = ex.restSeconds > 0 ? `Rest: ${formatRestTime(ex.restSeconds)}` : '';
 
+    // Phase 2: show a small indicator if the prescription was adapted
+    const adaptedDot = ex.adaptedFrom
+      ? `<span class="adapted-dot" title="${ex.adaptationReason || 'Adapted'}">●</span>`
+      : '';
+
     card.innerHTML = `
       <div class="exercise-card-header">
-        <span class="exercise-name">${ex.name}</span>
+        <span class="exercise-name">${ex.name} ${adaptedDot}</span>
         <span class="exercise-prescription">${prescription}</span>
       </div>
       ${ex.notes ? `<div class="exercise-cue">"${ex.notes}"</div>` : ''}
@@ -208,6 +279,6 @@ const WorkoutView = (() => {
   }
 
   // ── Public API ────────────────────────────────────────────────
-  return { render };
+  return { render, toggleChangeReasons };
 
 })();

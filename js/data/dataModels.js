@@ -133,6 +133,25 @@ function createWorkout(overrides = {}) {
     primaryGoal: '',
     estimatedMinutes: 0,
     sections: [],                 // array of WorkoutSection
+    // ── Phase 2: adaptive fields ──────────────────────────────
+    changeReasons: [],            // array of ChangeReason — shown in "Why this changed"
+    ...overrides,
+  };
+}
+
+/**
+ * createChangeReason()
+ * One entry in the "Why this changed" section of a workout.
+ * Populated by WorkoutGenerator when AdaptiveEngine modifies a prescription.
+ */
+function createChangeReason(overrides = {}) {
+  return {
+    exerciseId:   '',
+    exerciseName: '',
+    flag:         null,   // 'progress' | 'hold' | 'reduce' | 'regress' | 'modified'
+    reason:       '',     // human-readable explanation
+    adaptedFrom:  null,   // { sets, reps, durationSeconds } — original prescription
+    adaptedTo:    null,   // { sets, reps, durationSeconds } — new prescription
     ...overrides,
   };
 }
@@ -164,6 +183,9 @@ function createPlannedExercise(overrides = {}) {
     durationSeconds: null,  // null if rep-based
     restSeconds: 60,
     notes: '',          // coaching notes for this instance
+    // ── Phase 2: adaptive fields ──────────────────────────────
+    adaptedFrom:      null,   // { sets, reps, durationSeconds } — original prescription before adaptation
+    adaptationReason: null,   // short reason string (mirrors changeReason.reason)
     ...overrides,
   };
 }
@@ -180,8 +202,10 @@ function createWorkoutLog(overrides = {}) {
     startedAt: null,            // timestamp
     finishedAt: null,           // timestamp
     completed: false,           // true = user pressed "Finish"
-    overallNotes: '',           // workout-level free text (stored, not parsed)
+    overallNotes: '',           // workout-level free text
     exerciseLogs: [],           // array of ExerciseLog
+    // ── Phase 2: parsed signals ───────────────────────────────
+    parsedSignals: [],          // Signal[] from overallNotes — populated on finish
     ...overrides,
   };
 }
@@ -201,7 +225,9 @@ function createExerciseLog(overrides = {}) {
     rpe: null,                  // 1–10
     completed: false,           // true if at least 1 set done
     missed: false,              // true if explicitly skipped
-    notes: '',                  // exercise-level free text (stored, not parsed in P1)
+    notes: '',                  // exercise-level free text
+    // ── Phase 2: parsed signals ───────────────────────────────
+    parsedSignals: [],          // Signal[] from notes — populated on finish
     ...overrides,
   };
 }
@@ -222,7 +248,8 @@ function createSetLog(overrides = {}) {
 
 /**
  * createNote()
- * A saved note entry. Phase 1 stores it; Phase 2 will parse it.
+ * A saved standalone note entry.
+ * Phase 2 parses raw text via NoteParser and stores signals.
  */
 function createNote(overrides = {}) {
   return {
@@ -232,7 +259,7 @@ function createNote(overrides = {}) {
     text: '',                   // raw user text
     linkedWorkoutId: null,
     linkedExerciseId: null,
-    tags: [],                   // populated by parser in Phase 2
+    parsedSignals: [],          // Signal[] — populated by NoteParser on save
     ...overrides,
   };
 }

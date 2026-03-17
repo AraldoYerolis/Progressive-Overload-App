@@ -8,7 +8,13 @@
  *   - Input fields for actual reps / time per set
  *   - "Done" toggle button per set (tap to mark complete)
  *   - RPE selector per exercise
- *   - Notes field per exercise (stored, not parsed in Phase 1)
+ *   - Notes field per exercise (parsed for signals on finish)
+ *
+ * Phase 2 additions:
+ *   - On "Finish", NoteParser runs on all notes and stores
+ *     parsedSignals on each ExerciseLog and on the WorkoutLog.
+ *   - These signals are read by AdaptiveEngine the next time a
+ *     workout is generated.
  *
  * On "Finish", creates and saves a WorkoutLog, updates the
  * user's progression stats, checks for stage advancement,
@@ -202,7 +208,7 @@ const Logger = (() => {
       <div class="notes-row">
         <textarea class="notes-input"
           id="notes-${exerciseId}"
-          placeholder="Notes (optional — stored for future use)"
+          placeholder="Notes — pain, easy, grip, sore, tired, form… (parsed for next session)"
           oninput="Logger.updateNotes('${exerciseId}', this.value)">${currentNotes || ''}</textarea>
       </div>
     `;
@@ -354,6 +360,12 @@ const Logger = (() => {
     activeLog.finishedAt = Date.now();
     activeLog.completed  = true;
 
+    // ── Phase 2: parse all notes and store signals ────────────────
+    // This runs NoteParser on every exercise note + the overall note
+    // and stores the resulting signals so AdaptiveEngine can read them
+    // when generating the next workout.
+    parseAndStoreSignals(activeLog);
+
     Storage.saveLog(activeLog);
     Storage.clearActiveLog();
 
@@ -365,6 +377,28 @@ const Logger = (() => {
 
     activeLog     = null;
     exerciseState = {};
+  }
+
+  // ── Phase 2: Note parsing ──────────────────────────────────────
+
+  /**
+   * parseAndStoreSignals(log)
+   * Runs NoteParser on every note in the log and stores signals
+   * directly in the log object (in-place mutation before saving).
+   *
+   * - log.parsedSignals          ← from overallNotes
+   * - log.exerciseLogs[i].parsedSignals ← from each exercise's notes
+   */
+  function parseAndStoreSignals(log) {
+    if (!log) return;
+
+    // Workout-level notes
+    log.parsedSignals = NoteParser.parseNotes(log.overallNotes || '');
+
+    // Exercise-level notes
+    for (const exLog of (log.exerciseLogs || [])) {
+      exLog.parsedSignals = NoteParser.parseNotes(exLog.notes || '');
+    }
   }
 
   /**
