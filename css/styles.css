@@ -936,6 +936,270 @@ input:checked + .toggle-slider::before { transform: translateX(20px); }
   cursor: help;
 }
 
+/* ── Phase 3: Stage Progression Card (Today screen) ─────────── */
+
+.stage-progress-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 12px;
+  animation: fadeIn 0.3s ease;
+}
+
+.stage-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.stage-card-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-blue);
+  background: rgba(116,185,255,0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.stage-card-sessions {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.stage-card-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.stage-card-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.stage-card-bar-wrap {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.stage-card-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-light), var(--accent-blue));
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  min-width: 4px;
+}
+
+.stage-card-footer {
+  font-size: 12px;
+}
+
+.stage-card-next {
+  color: var(--text-secondary);
+}
+
+.stage-card-final {
+  color: var(--accent-green);
+  font-weight: 700;
+}
+
+/* ── Phase 3: Quick Completion Row (Log screen) ──────────────── */
+
+.quick-completion-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.qc-btn {
+  flex: 1;
+  padding: 10px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.qc-btn:active { transform: scale(0.96); }
+
+.qc-btn.qc-done.active {
+  border-color: var(--accent-green);
+  background: rgba(0,184,148,0.15);
+  color: var(--accent-green);
+}
+
+.qc-btn.qc-partial.active {
+  border-color: var(--accent-yellow);
+  background: rgba(253,203,110,0.12);
+  color: var(--accent-yellow);
+}
+
+.qc-btn.qc-missed.active {
+  border-color: #ff6b6b;
+  background: rgba(255,107,107,0.12);
+  color: #ff6b6b;
+}
+
+/* Block border highlight based on quick state */
+.log-exercise-block.qc-state-done    { border-color: rgba(0,184,148,0.4); }
+.log-exercise-block.qc-state-partial { border-color: rgba(253,203,110,0.4); }
+
+/* ── Phase 3: Note Chips ─────────────────────────────────────── */
+
+.note-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.note-chip {
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.note-chip:active {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-light);
+  color: var(--text-primary);
+  transform: scale(0.96);
+}
+
+/* ── Phase 3: Effort Row (renamed from RPE) ──────────────────── */
+
+.effort-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.effort-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  padding-top: 10px;
+  flex-shrink: 0;
+}
+
+.effort-btns {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+}
+
+.effort-btn {
+  flex: 1;
+  min-width: 44px;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 1.2;
+}
+.effort-btn.selected {
+  border-color: var(--accent-light);
+  background: rgba(233,69,96,0.2);
+  color: var(--accent-light);
+}
+.effort-num {
+  font-size: 13px;
+  font-weight: 700;
+}
+.effort-sub {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.8;
+}
+
+/* ── Phase 3: History — 4-column stats & trends ──────────────── */
+
+.stats-row-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.trends-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.trend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.trend-row:last-child { border: none; }
+
+.trend-icon { font-size: 14px; flex-shrink: 0; }
+
+.trend-label {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.trend-count {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* History detail rows */
+.history-detail-row {
+  padding: 4px 0;
+  line-height: 1.5;
+}
+
+.history-detail-notes {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* Extra badge colors */
+.badge-danger  { background: rgba(233,69,96,0.15);  color: var(--accent-light);  }
+.badge-warning { background: rgba(255,159,127,0.15); color: #ff9f7f;             }
+
 /* ── Animations ─────────────────────────────────────────────── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
