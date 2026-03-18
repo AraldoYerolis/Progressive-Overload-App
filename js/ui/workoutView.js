@@ -72,10 +72,58 @@ const WorkoutView = (() => {
     }
 
     container.innerHTML = '';
+    renderStageCard(workout, container);      // Phase 3: stage progression card
     renderChangeReasons(workout, container);  // Phase 2: show adaptations first
     renderSections(workout, container, false);
 
     if (startBar) startBar.style.display = 'block';
+  }
+
+  // ── Phase 3: Stage progression card ──────────────────────────
+
+  /**
+   * renderStageCard(workout, container)
+   * Renders a card showing the user's current progression stage,
+   * overall pathway position, and a hint toward the next stage.
+   */
+  function renderStageCard(workout, container) {
+    const profile = Storage.getProfile();
+    if (!profile) return;
+
+    const stageId      = workout.pullUpStage;
+    const currentStage = getStageById(stageId);
+    const rule         = ProgressionEngine.STAGE_RULES[stageId];
+    if (!rule) return;
+
+    const sessionsInStage = profile.progression.sessionsSinceStageStart || 0;
+    const totalStages     = PULL_UP_STAGE_COUNT;         // 8
+    const stageIndex      = currentStage.index;          // 0–7
+    const progressPct     = Math.round((stageIndex / (totalStages - 1)) * 100);
+    const isFinalStage    = !rule.advanceCriteria;
+
+    // Next stage label
+    const nextStageObj = Object.values(PULL_UP_STAGES).find(s => s.index === stageIndex + 1);
+    const nextText     = isFinalStage
+      ? `<span class="stage-card-final">🏆 Final stage reached!</span>`
+      : `<span class="stage-card-next">Next: ${nextStageObj ? nextStageObj.label : '—'} ▸</span>`;
+
+    const card = document.createElement('div');
+    card.className = 'stage-progress-card';
+    card.innerHTML = `
+      <div class="stage-card-header">
+        <span class="stage-card-badge">Stage ${stageIndex + 1} of ${totalStages}</span>
+        <span class="stage-card-sessions">${sessionsInStage} session${sessionsInStage !== 1 ? 's' : ''} here</span>
+      </div>
+      <div class="stage-card-name">${currentStage.label}</div>
+      <div class="stage-card-desc">${rule.description}</div>
+      <div class="stage-card-bar-wrap">
+        <div class="stage-card-bar-fill" style="width:${progressPct}%"></div>
+      </div>
+      <div class="stage-card-footer">
+        ${nextText}
+      </div>
+    `;
+    container.appendChild(card);
   }
 
   // ── Phase 2: "Why this changed" card ─────────────────────────
@@ -279,6 +327,6 @@ const WorkoutView = (() => {
   }
 
   // ── Public API ────────────────────────────────────────────────
-  return { render, toggleChangeReasons };
+  return { render, toggleChangeReasons, renderStageCard };
 
 })();

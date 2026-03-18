@@ -110,8 +110,13 @@ const Logger = (() => {
     }
     exerciseState[exId] = state;
 
+    // Determine current quick-state for visual highlight
+    const allDone    = state.setLogs.length > 0 && state.setLogs.every(s => s.completed);
+    const noneDone   = state.setLogs.every(s => !s.completed);
+    const quickClass = allDone ? 'qc-state-done' : (!noneDone ? 'qc-state-partial' : '');
+
     const block = document.createElement('div');
-    block.className = 'log-exercise-block';
+    block.className = `log-exercise-block ${quickClass}`;
     block.id = `log-block-${exId}`;
 
     // Header
@@ -121,13 +126,63 @@ const Logger = (() => {
         <div class="log-exercise-planned">Planned: ${plannedLabel}</div>
       </div>
       <div class="log-exercise-body" id="log-body-${exId}">
+        ${buildQuickCompletionHTML(exId, state)}
         ${buildSetRowsHTML(ex, state, isTimeBased)}
-        ${buildRPERowHTML(exId, state.rpe)}
+        ${buildEffortRowHTML(exId, state.rpe)}
         ${buildNotesRowHTML(exId, state.notes)}
+        ${buildNoteChipsHTML(exId)}
       </div>
     `;
 
     return block;
+  }
+
+  /**
+   * buildQuickCompletionHTML(exerciseId, state)
+   * Returns the quick-tap completion state row:
+   * [ ✓ All Done ] [ ~ Partial ] [ ✗ Missed ]
+   */
+  function buildQuickCompletionHTML(exerciseId, state) {
+    const allDone  = state.setLogs.length > 0 && state.setLogs.every(s => s.completed);
+    const noneDone = state.setLogs.every(s => !s.completed);
+    const partial  = !allDone && !noneDone;
+
+    const doneActive    = allDone  ? 'active' : '';
+    const partialActive = partial  ? 'active' : '';
+    const missedActive  = noneDone && state.setLogs.some(s => s.setNumber > 0) ? '' : '';
+
+    return `
+      <div class="quick-completion-row">
+        <button class="qc-btn qc-done ${doneActive}"
+          id="qc-${exerciseId}-done"
+          onclick="Logger.setExerciseQuickState('${exerciseId}', 'done')">✓ All Done</button>
+        <button class="qc-btn qc-partial ${partialActive}"
+          id="qc-${exerciseId}-partial"
+          onclick="Logger.setExerciseQuickState('${exerciseId}', 'partial')">~ Partial</button>
+        <button class="qc-btn qc-missed ${missedActive}"
+          id="qc-${exerciseId}-missed"
+          onclick="Logger.setExerciseQuickState('${exerciseId}', 'missed')">✗ Missed</button>
+      </div>
+    `;
+  }
+
+  /**
+   * buildNoteChipsHTML(exerciseId)
+   * Returns quick note chips below the notes textarea.
+   */
+  function buildNoteChipsHTML(exerciseId) {
+    const chips = [
+      { label: 'Felt easy',        text: 'easy'   },
+      { label: 'Hard effort',      text: 'hard'   },
+      { label: 'Grip failed',      text: 'grip'   },
+      { label: 'Joint discomfort', text: 'joints' },
+      { label: 'Still sore',       text: 'sore'   },
+      { label: 'Poor sleep',       text: 'tired'  },
+    ];
+    const btns = chips.map(c =>
+      `<button class="note-chip" onclick="Logger.appendNoteChip('${exerciseId}', '${c.text}')">${c.label}</button>`
+    ).join('');
+    return `<div class="note-chips-row">${btns}</div>`;
   }
 
   /**
@@ -180,22 +235,32 @@ const Logger = (() => {
   }
 
   /**
-   * buildRPERowHTML(exerciseId, currentRPE)
-   * Returns the RPE selector row HTML.
+   * buildEffortRowHTML(exerciseId, currentRPE)
+   * Returns the effort selector row HTML with beginner-friendly labels.
+   * Internally still maps to RPE 6–10.
    */
-  function buildRPERowHTML(exerciseId, currentRPE) {
-    const rpeValues = [6, 7, 8, 9, 10];
-    const btns = rpeValues.map(v => {
-      const selected = currentRPE === v ? 'selected' : '';
-      return `<button class="rpe-btn ${selected}"
-        onclick="Logger.setRPE('${exerciseId}', ${v})"
-        id="rpe-${exerciseId}-${v}">${v}</button>`;
+  function buildEffortRowHTML(exerciseId, currentRPE) {
+    const effortLevels = [
+      { value: 6,  label: '6', sub: 'Easy'    },
+      { value: 7,  label: '7', sub: 'Mod'     },
+      { value: 8,  label: '8', sub: 'Hard'    },
+      { value: 9,  label: '9', sub: 'V.Hard'  },
+      { value: 10, label: '10',sub: 'Max'     },
+    ];
+    const btns = effortLevels.map(e => {
+      const selected = currentRPE === e.value ? 'selected' : '';
+      return `<button class="effort-btn ${selected}"
+        onclick="Logger.setRPE('${exerciseId}', ${e.value})"
+        id="rpe-${exerciseId}-${e.value}">
+        <span class="effort-num">${e.label}</span>
+        <span class="effort-sub">${e.sub}</span>
+      </button>`;
     }).join('');
 
     return `
-      <div class="rpe-row">
-        <span class="rpe-label">RPE:</span>
-        <div class="rpe-btns">${btns}</div>
+      <div class="effort-row">
+        <span class="effort-label">How hard?</span>
+        <div class="effort-btns">${btns}</div>
       </div>
     `;
   }
@@ -271,6 +336,73 @@ const Logger = (() => {
     }
     exerciseState[exerciseId].notes = text;
     autosave();
+  }
+
+  /**
+   * setExerciseQuickState(exerciseId, quickState)
+   * Sets all sets to done / partial / missed in one tap.
+   * 'done'    — all sets completed, pre-fills planned values if empty
+   * 'partial' — first half of sets marked done
+   * 'missed'  — all sets marked not completed
+   */
+  function setExerciseQuickState(exerciseId, quickState) {
+    ensureExerciseState(exerciseId, 0);
+    const state = exerciseState[exerciseId];
+
+    // Resolve the planned exercise for pre-filling values
+    const workout = Storage.getTodaysWorkout();
+    const ex = workout
+      ? workout.sections.flatMap(s => s.exercises).find(e => e.exerciseId === exerciseId)
+      : null;
+
+    const total = state.setLogs.length;
+    state.setLogs.forEach((setLog, i) => {
+      if (quickState === 'done') {
+        setLog.completed = true;
+        if (ex && !setLog.repsCompleted && ex.reps) setLog.repsCompleted = ex.reps;
+        if (ex && !setLog.durationSeconds && ex.durationSeconds) setLog.durationSeconds = ex.durationSeconds;
+      } else if (quickState === 'partial') {
+        setLog.completed = i < Math.ceil(total / 2);
+      } else {
+        setLog.completed = false;
+      }
+    });
+
+    // Refresh set-done button visuals
+    state.setLogs.forEach((setLog, i) => {
+      const btn = document.getElementById(`done-btn-${exerciseId}-${i}`);
+      if (btn) {
+        btn.classList.toggle('completed', setLog.completed);
+        btn.textContent = setLog.completed ? '✓' : '○';
+      }
+    });
+
+    // Highlight the selected quick-state button
+    ['done', 'partial', 'missed'].forEach(s => {
+      const btn = document.getElementById(`qc-${exerciseId}-${s}`);
+      if (btn) btn.classList.toggle('active', s === quickState);
+    });
+
+    // Add a visual class to the exercise block
+    const block = document.getElementById(`log-block-${exerciseId}`);
+    if (block) {
+      block.classList.remove('qc-state-done', 'qc-state-partial', 'qc-state-missed');
+      if (quickState !== 'missed') block.classList.add(`qc-state-${quickState}`);
+    }
+
+    autosave();
+  }
+
+  /**
+   * appendNoteChip(exerciseId, chipText)
+   * Appends a quick-note chip keyword to the notes textarea.
+   */
+  function appendNoteChip(exerciseId, chipText) {
+    const textarea = document.getElementById(`notes-${exerciseId}`);
+    if (!textarea) return;
+    const current = textarea.value.trim();
+    textarea.value = current ? `${current}, ${chipText}` : chipText;
+    updateNotes(exerciseId, textarea.value);
   }
 
   /**
@@ -487,6 +619,8 @@ const Logger = (() => {
     setRPE,
     updateNotes,
     dismissCompletion,
+    setExerciseQuickState,
+    appendNoteChip,
   };
 
 })();
